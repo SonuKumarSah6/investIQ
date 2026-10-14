@@ -1,0 +1,7 @@
+{
+  "name": "InvestIQ — Learn. Invest. Grow.",
+  "description": "Personalized investment simulator and portfolio analytics dashboard with Google authentication, persistent Cloud Firestore storage, authentic NSE & BSE market data, virtual trading, and AI Investment Mentor.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

@@ -1,0 +1,141 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net (Pillar 4.1): Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Entity validation helpers
+    function isValidUser(data, userId) {
+      return data.keys().hasAll(['uid'])
+        && data.uid is string && data.uid == userId
+        && (!('name' in data) || (data.name is string && data.name.size() > 0 && data.name.size() <= 100))
+        && (!('displayName' in data) || (data.displayName is string && data.displayName.size() > 0 && data.displayName.size() <= 100))
+        && (!('email' in data) || (data.email is string && data.email.size() <= 150))
+        && (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 500))
+        && (!('experienceLevel' in data) || (data.experienceLevel in ['Beginner', 'Intermediate', 'Advanced']))
+        && (!('currency' in data) || data.currency == 'INR');
+    }
+
+    function isValidPortfolio(data, userId) {
+      return data.keys().hasAll(['userId', 'startingBalance', 'cashBalance'])
+        && data.userId is string && data.userId == userId
+        && data.startingBalance is number && data.startingBalance >= 0
+        && data.cashBalance is number && data.cashBalance >= 0
+        && (!('realizedPL' in data) || data.realizedPL is number);
+    }
+
+    function isValidHolding(data, userId) {
+      return data.keys().hasAll(['userId', 'symbol', 'quantity', 'avgPrice', 'totalInvested'])
+        && data.userId is string && data.userId == userId
+        && data.symbol is string && data.symbol.size() > 0 && data.symbol.size() <= 20
+        && data.quantity is number && data.quantity > 0
+        && data.avgPrice is number && data.avgPrice > 0
+        && data.totalInvested is number && data.totalInvested >= 0;
+    }
+
+    function isValidTransaction(data, userId) {
+      return data.keys().hasAll(['id', 'userId', 'symbol', 'type', 'quantity', 'price', 'totalAmount', 'timestamp'])
+        && data.userId is string && data.userId == userId
+        && data.id is string && data.id.size() > 0 && data.id.size() <= 128
+        && data.symbol is string && data.symbol.size() > 0 && data.symbol.size() <= 20
+        && (data.type == 'BUY' || data.type == 'SELL')
+        && data.quantity is number && data.quantity > 0
+        && data.price is number && data.price > 0
+        && data.totalAmount is number && data.totalAmount >= 0
+        && data.timestamp is number;
+    }
+
+    function isValidWatchlistItem(data, userId) {
+      return data.keys().hasAll(['symbol', 'userId'])
+        && data.userId is string && data.userId == userId
+        && data.symbol is string && data.symbol.size() > 0 && data.symbol.size() <= 20
+        && (!('addedAt' in data) || data.addedAt is number);
+    }
+
+    function isValidSnapshot(data, userId) {
+      return data.keys().hasAll(['userId', 'timestamp', 'cash', 'totalPortfolioValue'])
+        && data.userId is string && data.userId == userId
+        && data.timestamp is number
+        && data.cash is number && data.cash >= 0
+        && data.totalPortfolioValue is number;
+    }
+
+    // User document
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false; // Disallow listing all users
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUser(incoming(), userId);
+      allow update: if isOwner(userId) && isValidId(userId) && isValidUser(incoming(), userId);
+      allow delete: if false; // User accounts are preserved
+
+      // User Portfolio document
+      match /portfolio/{portfolioId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(portfolioId);
+        allow list: if isOwner(userId) && isValidId(userId);
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(portfolioId) && isValidPortfolio(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(userId) && isValidId(portfolioId) && isValidPortfolio(incoming(), userId);
+        allow delete: if false;
+      }
+
+      // User Holdings subcollection
+      match /holdings/{holdingId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(holdingId);
+        allow list: if isOwner(userId) && isValidId(userId);
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(holdingId) && isValidHolding(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(userId) && isValidId(holdingId) && isValidHolding(incoming(), userId);
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(holdingId);
+      }
+
+      // User Transactions subcollection (Append-only ledger)
+      match /transactions/{transactionId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(transactionId);
+        allow list: if isOwner(userId) && isValidId(userId);
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(transactionId) && isValidTransaction(incoming(), userId);
+        allow update: if false; // Transactions are strictly immutable
+        allow delete: if false; // Audit ledger cannot be deleted
+      }
+
+      // User Watchlist subcollection
+      match /watchlist/{itemId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(itemId);
+        allow list: if isOwner(userId) && isValidId(userId);
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(itemId) && isValidWatchlistItem(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(userId) && isValidId(itemId) && isValidWatchlistItem(incoming(), userId);
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(itemId);
+      }
+
+      // User Portfolio Snapshots subcollection
+      match /portfolioSnapshots/{snapshotId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(snapshotId);
+        allow list: if isOwner(userId) && isValidId(userId);
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(snapshotId) && isValidSnapshot(incoming(), userId);
+        allow update: if false; // Snapshots are historical records
+        allow delete: if false;
+      }
+    }
+  }
+}

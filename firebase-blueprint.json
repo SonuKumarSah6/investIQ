@@ -1,0 +1,129 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile document containing identity, contact email, and preferences",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "displayName": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "maxLength": 150 },
+        "photoURL": { "type": "string", "maxLength": 500 },
+        "experienceLevel": { "type": "string", "enum": ["Beginner", "Intermediate", "Advanced"] },
+        "currency": { "type": "string", "enum": ["INR"] },
+        "joinedDate": { "type": "string", "maxLength": 50 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "email"]
+    },
+    "Portfolio": {
+      "title": "Portfolio",
+      "description": "User virtual cash balance, starting balance, and realized P&L",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "startingBalance": { "type": "number" },
+        "cashBalance": { "type": "number" },
+        "realizedPL": { "type": "number" },
+        "initialized": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "startingBalance", "cashBalance", "realizedPL"]
+    },
+    "Holding": {
+      "title": "Holding",
+      "description": "Active virtual stock holding for an equity instrument",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "symbol": { "type": "string", "maxLength": 20 },
+        "exchange": { "type": "string", "enum": ["NSE", "BSE"] },
+        "companyName": { "type": "string", "maxLength": 150 },
+        "quantity": { "type": "integer" },
+        "avgPrice": { "type": "number" },
+        "totalInvested": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "symbol", "quantity", "avgPrice", "totalInvested"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Executed simulated trade transaction record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "symbol": { "type": "string", "maxLength": 20 },
+        "stockName": { "type": "string", "maxLength": 150 },
+        "exchange": { "type": "string", "enum": ["NSE", "BSE"] },
+        "type": { "type": "string", "enum": ["BUY", "SELL"] },
+        "quantity": { "type": "integer" },
+        "price": { "type": "number" },
+        "totalAmount": { "type": "number" },
+        "cashAfterTrade": { "type": "number" },
+        "realizedPL": { "type": "number" },
+        "timestamp": { "type": "integer" },
+        "dateFormatted": { "type": "string", "maxLength": 80 },
+        "simulated": { "type": "boolean" }
+      },
+      "required": ["id", "userId", "symbol", "type", "quantity", "price", "totalAmount", "timestamp"]
+    },
+    "WatchlistItem": {
+      "title": "WatchlistItem",
+      "description": "Stock bookmarked in user watchlist",
+      "type": "object",
+      "properties": {
+        "symbol": { "type": "string", "maxLength": 20 },
+        "exchange": { "type": "string", "enum": ["NSE", "BSE"] },
+        "userId": { "type": "string", "maxLength": 128 },
+        "addedAt": { "type": "integer" }
+      },
+      "required": ["symbol", "userId", "addedAt"]
+    },
+    "PortfolioSnapshot": {
+      "title": "PortfolioSnapshot",
+      "description": "Historical portfolio valuation snapshot",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "timestamp": { "type": "integer" },
+        "dateFormatted": { "type": "string", "maxLength": 80 },
+        "cash": { "type": "number" },
+        "holdingsMarketValue": { "type": "number" },
+        "totalPortfolioValue": { "type": "number" },
+        "totalProfitLoss": { "type": "number" },
+        "totalProfitLossPercent": { "type": "number" },
+        "totalUnrealizedPL": { "type": "number" },
+        "totalRealizedPL": { "type": "number" }
+      },
+      "required": ["userId", "timestamp", "cash", "totalPortfolioValue"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile document containing identity, contact email, and preferences"
+    },
+    "/users/{userId}/portfolio/{portfolioId}": {
+      "schema": "Portfolio",
+      "description": "User virtual cash balance, starting balance, and realized P&L"
+    },
+    "/users/{userId}/holdings/{holdingId}": {
+      "schema": "Holding",
+      "description": "Active virtual stock holding for an equity instrument"
+    },
+    "/users/{userId}/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Executed simulated trade transaction record"
+    },
+    "/users/{userId}/watchlist/{itemId}": {
+      "schema": "WatchlistItem",
+      "description": "Stock bookmarked in user watchlist"
+    },
+    "/users/{userId}/portfolioSnapshots/{snapshotId}": {
+      "schema": "PortfolioSnapshot",
+      "description": "Historical portfolio valuation snapshot"
+    }
+  }
+}
